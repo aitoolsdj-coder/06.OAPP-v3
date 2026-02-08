@@ -3,7 +3,7 @@
  * Caches application shell and assets.
  */
 
-const CACHE_NAME = 'oapp-v3-cache-v2';
+const CACHE_NAME = 'oapp-v3-cache-v4';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',

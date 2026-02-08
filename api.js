@@ -6,9 +6,6 @@
 const BASE_URL = 'https://jakubdworak.app.n8n.cloud/webhook';
 const TIMEOUT_MS = 12000; // 12 seconds
 
-const BASE_URL = 'https://jakubdworak.app.n8n.cloud/webhook';
-const TIMEOUT_MS = 12000; // 12 seconds
-
 window.API = {
     endpoints: {
         orders: {
@@ -94,3 +91,6 @@ window.API = {
         return this.request(this.endpoints.items.status, 'POST', { id, status });
     }
 };
+
+// Backward compatibility for cached app.js versions
+var API = window.API;

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,12 +8,13 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#003264">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="icon-192.png"> 
+    <link rel="icon" type="image/png" href="icon-192.png">
     <!-- PWA iOS settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="OAPP v3">
 </head>
+
 <body>
 
     <div id="app">
@@ -22,10 +24,11 @@
                 <h1>Zapotrzebowania</h1>
                 <button id="refresh-orders" class="refresh-btn" aria-label="Odśwież">↻</button>
             </header>
-            
+
             <div class="content">
                 <section class="add-form-section">
-                    <button class="toggle-form-btn" onclick="toggleForm('orders-form-container')">+ Nowe Zapotrzebowanie</button>
+                    <button class="toggle-form-btn" onclick="toggleForm('orders-form-container')">+ Nowe
+                        Zapotrzebowanie</button>
                     <div id="orders-form-container" class="form-container hidden">
                         <form id="orders-form">
                             <input type="text" name="co" placeholder="Co potrzeba? *" required>
@@ -46,16 +49,16 @@
 
         <!-- Pytania View -->
         <div id="view-items" class="view">
-             <header>
+            <header>
                 <h1>Pytania</h1>
                 <button id="refresh-items" class="refresh-btn" aria-label="Odśwież">↻</button>
             </header>
-            
-             <div class="content">
+
+            <div class="content">
                 <section class="add-form-section">
-                     <button class="toggle-form-btn" onclick="toggleForm('items-form-container')">+ Nowe Pytanie</button>
+                    <button class="toggle-form-btn" onclick="toggleForm('items-form-container')">+ Nowe Pytanie</button>
                     <div id="items-form-container" class="form-container hidden">
-                         <form id="items-form">
+                        <form id="items-form">
                             <input type="text" name="opis" placeholder="Treść pytania *" required>
                             <input type="date" name="termin_odpowiedzi" placeholder="Termin odpowiedzi">
                             <select name="priorytet">
@@ -64,33 +67,78 @@
                                 <option value="Wysoki">Wysoki</option>
                             </select>
                             <input type="text" name="autor" placeholder="Autor (opcjonalnie)">
-                             <button type="submit" class="submit-btn">Dodaj</button>
+                            <button type="submit" class="submit-btn">Dodaj</button>
                         </form>
                     </div>
                 </section>
 
                 <div class="kanban-board" id="items-board">
-                     <!-- Columns will be injected by JS -->
+                    <!-- Columns will be injected by JS -->
                 </div>
             </div>
         </div>
 
-        <!-- Dokumentacja View -->
+        <!-- Pliki View -->
         <div id="view-docs" class="view">
-             <header>
-                <h1>Dokumentacja</h1>
+            <header>
+                <h1>Pliki (Drive)</h1>
             </header>
-             <div class="content docs-content">
-                <a href="https://drive.google.com/drive/folders/1iURUi0OKIleXiPBbYsfZSKutvIRBJWmS?usp=sharing" target="_blank" class="drive-btn">
+            <div class="content docs-content">
+                <div class="drive-embed-container">
+                    <iframe src="https://drive.google.com/embeddedfolderview?id=1iURUi0OKIleXiPBbYsfZSKutvIRBJWmS#grid"
+                        class="drive-frame" title="Pliki Google Drive" allowfullscreen>
+                    </iframe>
+                </div>
+                <a href="https://drive.google.com/drive/folders/1iURUi0OKIleXiPBbYsfZSKutvIRBJWmS?usp=sharing"
+                    target="_blank" class="drive-btn">
                     📂 Otwórz folder w Google Drive
                 </a>
-                
-                <div class="links-section">
-                    <h2>Ważne linki</h2>
-                    <ul id="links-list">
-                        <!-- Links injected by JS -->
-                    </ul>
-                    <button class="add-link-btn" onclick="addNewLink()">+ Dodaj link</button>
+            </div>
+        </div>
+
+        <!-- Chat AI View -->
+        <div id="view-chat" class="view">
+            <header>
+                <h1>Chat AI</h1>
+            </header>
+            <div class="content chat-content">
+                <div class="chat-main-area">
+                    <button id="open-chat-btn" class="chat-open-btn">
+                        🤖 Otwórz Chat AI
+                    </button>
+                    <p class="chat-hint">Otwiera NotebookLM w nowej karcie</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ustawienia View -->
+        <div id="view-settings" class="view">
+            <header>
+                <h1>Ustawienia</h1>
+            </header>
+            <div class="content settings-content">
+                <div class="chat-settings">
+                    <div class="setting-group">
+                        <label for="user-name-input">Użytkownik (Autor)</label>
+                        <input type="text" id="user-name-input" placeholder="Twoje imię / nazwisko">
+                        <p class="setting-hint">Automatycznie uzupełnia pole "Autor"</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="chat-link-input">Link do Chat AI (NotebookLM)</label>
+                        <input type="text" id="chat-link-input" placeholder="Wklej link do notatnika...">
+                    </div>
+
+                    <div class="settings-actions">
+                        <button id="test-connection-btn" class="test-conn-btn">📡 Testuj połączenie</button>
+                        <button id="save-settings-btn" class="save-settings-btn">Zapisz ustawienia</button>
+                    </div>
+
+                    <div class="links-section">
+                        <h2>Zapisane Linki</h2>
+                        <ul id="links-list"></ul>
+                        <button class="add-link-btn" onclick="addNewLink()">+ Dodaj link</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -101,13 +149,21 @@
                 <span class="icon">📦</span>
                 <span class="label">Zapotrzebowania</span>
             </button>
-             <button class="nav-btn" data-target="view-items">
+            <button class="nav-btn" data-target="view-items">
                 <span class="icon">❓</span>
                 <span class="label">Pytania</span>
             </button>
-             <button class="nav-btn" data-target="view-docs">
+            <button class="nav-btn" data-target="view-docs">
                 <span class="icon">📂</span>
-                <span class="label">Dokumentacja</span>
+                <span class="label">Pliki</span>
+            </button>
+            <button class="nav-btn" data-target="view-chat">
+                <span class="icon">🤖</span>
+                <span class="label">Chat AI</span>
+            </button>
+            <button class="nav-btn" data-target="view-settings">
+                <span class="icon">⚙️</span>
+                <span class="label">Ustawienia</span>
             </button>
         </nav>
     </div>
@@ -121,10 +177,22 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('[OAPP] SW registered!', reg))
+                    .then(reg => {
+                        console.log('[OAPP] SW registered!', reg);
+                        // Check for updates
+                        reg.addEventListener('updatefound', () => {
+                            const newWorker = reg.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log('[OAPP] New version initialized');
+                                }
+                            });
+                        });
+                    })
                     .catch(err => console.log('[OAPP] SW registration failed', err));
             });
         }
     </script>
 </body>
+
 </html>

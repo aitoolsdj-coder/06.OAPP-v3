@@ -19,8 +19,13 @@ const Elements = {
     // Forms
     ordersForm: document.getElementById('orders-form'),
     itemsForm: document.getElementById('items-form'),
-    // Documentation
+    // Settings & Chat
     linksList: document.getElementById('links-list'),
+    chatLinkInput: document.getElementById('chat-link-input'),
+    userNameInput: document.getElementById('user-name-input'),
+    saveSettingsBtn: document.getElementById('save-settings-btn'),
+    testConnectionBtn: document.getElementById('test-connection-btn'),
+    openChatBtn: document.getElementById('open-chat-btn')
 };
 
 /* --- UI Utilities --- */
@@ -36,6 +41,17 @@ function showToast(message, duration = 3000) {
 function toggleForm(containerId) {
     const container = document.getElementById(containerId);
     container.classList.toggle('hidden');
+
+    // Auto-fill Author when opening form
+    if (!container.classList.contains('hidden')) {
+        const userName = Storage.getUserName();
+        if (userName) {
+            const form = container.querySelector('form');
+            if (form && form.elements.autor && !form.elements.autor.value) {
+                form.elements.autor.value = userName;
+            }
+        }
+    }
 }
 
 function updateConnectionStatus() {
@@ -162,21 +178,17 @@ async function updateStatus(type, id, newStatus) {
         if (navigator.onLine) {
             try {
                 let res;
-                if (type === 'order') res = await API.updateOrderStatus(id, newStatus);
-                else res = await API.updateItemStatus(id, newStatus);
+                if (type === 'order') res = await window.API.updateOrderStatus(id, newStatus);
+                else res = await window.API.updateItemStatus(id, newStatus);
 
                 if (res && res.ok) {
                     showToast('Status zaktualizowany w chmurze.');
-                    // Optional silent sync to ensure consistency
-                    // setTimeout(() => syncCurrentView(true), 1000); 
                 } else {
                     throw new Error('API Error');
                 }
             } catch (err) {
                 console.error('[OAPP] Status Update Failed', err);
                 showToast('Błąd aktualizacji statusu online. Zmiana zapisana lokalnie.');
-                // In a real robust app, we'd queue this action. 
-                // Here we stick to optimistic UI + local failover.
             }
         } else {
             showToast('Offline. Status zmieniony lokalnie.');
@@ -184,13 +196,13 @@ async function updateStatus(type, id, newStatus) {
     }
 }
 
-// Expose updateStatus globally for inline onclick handlers
 window.updateStatus = updateStatus;
 window.toggleForm = toggleForm;
 
 // --- Documentation Rendering ---
 function renderLinks() {
     const list = Elements.linksList;
+    if (!list) return;
     list.innerHTML = '';
     const links = Storage.getLinks();
 
@@ -235,7 +247,7 @@ async function syncOrders(silent = false) {
 
     if (!silent) showToast('Odświeżanie zapotrzebowań...');
     try {
-        const res = await API.fetchOrders();
+        const res = await window.API.fetchOrders();
         console.log('[OAPP] Sync Orders:', res);
 
         if (res && res.ok && Array.isArray(res.items)) {
@@ -252,7 +264,7 @@ async function syncOrders(silent = false) {
         }
     } catch (err) {
         console.error('[OAPP] Sync Orders Error', err);
-        if (!silent) showToast('Błąd synchronizacji.');
+        if (!silent) showToast('1. Błąd synchronizacji.');
     }
 }
 
@@ -264,7 +276,7 @@ async function syncItems(silent = false) {
 
     if (!silent) showToast('Odświeżanie pytań...');
     try {
-        const res = await API.fetchItems();
+        const res = await window.API.fetchItems();
         console.log('[OAPP] Sync Items:', res);
 
         if (res && res.ok && Array.isArray(res.items)) {
@@ -281,7 +293,7 @@ async function syncItems(silent = false) {
         }
     } catch (err) {
         console.error('[OAPP] Sync Items Error', err);
-        if (!silent) showToast('Błąd synchronizacji.');
+        if (!silent) showToast('2. Błąd synchronizacji.');
     }
 }
 
@@ -306,6 +318,63 @@ function checkAutoSync() {
     }
 }
 
+/* --- Settings Logic --- */
+function initSettings() {
+    // Load saved settings
+    if (Elements.chatLinkInput) Elements.chatLinkInput.value = Storage.getChatLink();
+    if (Elements.userNameInput) Elements.userNameInput.value = Storage.getUserName();
+    renderLinks(); // Now in settings view
+}
+
+if (Elements.saveSettingsBtn) {
+    Elements.saveSettingsBtn.addEventListener('click', () => {
+        const rawLink = Elements.chatLinkInput.value.trim();
+        const userName = Elements.userNameInput.value.trim();
+        let success = true;
+
+        if (rawLink) {
+            if (!rawLink.startsWith('http')) {
+                showToast('Link do Chat AI musi startować od http.');
+                success = false;
+            } else {
+                Storage.saveChatLink(rawLink);
+            }
+        }
+
+        Storage.saveUserName(userName); // Save even if empty
+
+        if (success) showToast('Ustawienia zapisane.');
+    });
+}
+
+if (Elements.testConnectionBtn) {
+    Elements.testConnectionBtn.addEventListener('click', async () => {
+        showToast('Testowanie połączenia...');
+        try {
+            const res = await window.API.fetchItems();
+            if (res && res.ok) {
+                showToast('✅ Połączenie OK!');
+            } else {
+                showToast('⚠️ Połączenie: Otrzymano błąd.');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('❌ Błąd połączenia.');
+        }
+    });
+}
+
+if (Elements.openChatBtn) {
+    Elements.openChatBtn.addEventListener('click', () => {
+        const link = Storage.getChatLink();
+        if (link) {
+            window.open(link, '_blank');
+        } else {
+            showToast('Skonfiguruj link w zakładce Ustawienia.');
+        }
+    });
+}
+
 /* --- Event Listeners --- */
 
 // Navigation
@@ -318,17 +387,15 @@ Elements.navButtons.forEach(btn => {
         // Switch View
         Elements.views.forEach(v => v.classList.remove('active'));
         const targetId = btn.dataset.target;
-        document.getElementById(targetId).classList.add('active');
+        const targetView = document.getElementById(targetId);
+        if (targetView) targetView.classList.add('active');
 
         AppState.currentView = targetId;
 
-        // Trigger Sync if switching to data view
+        // View Specific Logic
         if (targetId === 'view-orders') {
             const orders = Storage.getOrders();
             renderKanban(Elements.ordersBoard, orders, 'order');
-            // Background sync logic if stale? Or just manual?
-            // User requested: "Po wejściu w zakładkę: wykonaj sync tylko tej zakładki."
-            // We'll do it if network available
             if (navigator.onLine) syncOrders(true);
 
         } else if (targetId === 'view-items') {
@@ -336,100 +403,101 @@ Elements.navButtons.forEach(btn => {
             renderKanban(Elements.itemsBoard, items, 'item');
             if (navigator.onLine) syncItems(true);
 
-        } else if (targetId === 'view-docs') {
-            renderLinks();
+        } else if (targetId === 'view-settings') {
+            initSettings();
         }
+        // view-chat and view-docs are static or simple
     });
 });
 
-// Refresh Buttons (Manual Sync)
-document.getElementById('refresh-orders').addEventListener('click', () => {
-    console.log('[OAPP] Manual Refresh: Orders');
-    syncOrders(false);
-});
+// Refresh Buttons
+const refreshOrdersBtn = document.getElementById('refresh-orders');
+if (refreshOrdersBtn) {
+    refreshOrdersBtn.addEventListener('click', () => syncOrders(false));
+}
 
-document.getElementById('refresh-items').addEventListener('click', () => {
-    console.log('[OAPP] Manual Refresh: Items');
-    syncItems(false);
-});
+const refreshItemsBtn = document.getElementById('refresh-items');
+if (refreshItemsBtn) {
+    refreshItemsBtn.addEventListener('click', () => syncItems(false));
+}
 
 // Form Submissions
-Elements.ordersForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
+if (Elements.ordersForm) {
+    Elements.ordersForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
 
-    if (!data.co.trim()) return;
+        if (!data.co.trim()) return;
 
-    // Create temp local object
-    const newItem = {
-        id: `local-${Date.now()}`,
-        ...data,
-        status: 'Nowe'
-    };
+        const newItem = {
+            id: `local-${Date.now()}`,
+            ...data,
+            status: 'Nowe'
+        };
 
-    // Optimistically add to local storage
-    const orders = Storage.getOrders();
-    orders.unshift(newItem); // Add to top
-    Storage.saveOrders(orders);
-    renderKanban(Elements.ordersBoard, orders, 'order');
+        const orders = Storage.getOrders();
+        orders.unshift(newItem);
+        Storage.saveOrders(orders);
+        renderKanban(Elements.ordersBoard, orders, 'order');
 
-    e.target.reset();
-    toggleForm('orders-form-container');
+        e.target.reset();
+        toggleForm('orders-form-container');
 
-    if (navigator.onLine) {
-        showToast('Wysyłanie...');
-        try {
-            await API.addOrder(data);
-            showToast('Dodano pomyślnie.');
-            syncOrders(true); // Refresh with server ID
-        } catch (err) {
-            console.error('[OAPP] Add Order Failed', err);
-            showToast('Błąd wysyłania. Zapisano lokalnie.');
+        if (navigator.onLine) {
+            showToast('Wysyłanie...');
+            try {
+                await window.API.addOrder(data);
+                showToast('Dodano pomyślnie.');
+                syncOrders(true);
+            } catch (err) {
+                console.error('[OAPP] Add Order Failed', err);
+                showToast('Błąd wysyłania. Zapisano lokalnie.');
+            }
+        } else {
+            showToast('Offline. Zapisano lokalnie.');
         }
-    } else {
-        showToast('Offline. Zapisano lokalnie.');
-    }
-});
+    });
+}
 
-Elements.itemsForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
+if (Elements.itemsForm) {
+    Elements.itemsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
 
-    if (!data.opis.trim()) return;
+        if (!data.opis.trim()) return;
 
-    const newItem = {
-        id: `local-${Date.now()}`,
-        ...data,
-        status: 'Nowe'
-    };
+        const newItem = {
+            id: `local-${Date.now()}`,
+            ...data,
+            status: 'Nowe'
+        };
 
-    const items = Storage.getItems();
-    items.unshift(newItem);
-    Storage.saveItems(items);
-    renderKanban(Elements.itemsBoard, items, 'item');
+        const items = Storage.getItems();
+        items.unshift(newItem);
+        Storage.saveItems(items);
+        renderKanban(Elements.itemsBoard, items, 'item');
 
-    e.target.reset();
-    toggleForm('items-form-container');
+        e.target.reset();
+        toggleForm('items-form-container');
 
-    if (navigator.onLine) {
-        showToast('Wysyłanie...');
-        try {
-            await API.addItem(data);
-            showToast('Dodano pomyślnie.');
-            syncItems(true);
-        } catch (err) {
-            console.error('[OAPP] Add Item Failed', err);
-            showToast('Błąd wysyłania. Zapisano lokalnie.');
+        if (navigator.onLine) {
+            showToast('Wysyłanie...');
+            try {
+                await window.API.addItem(data);
+                showToast('Dodano pomyślnie.');
+                syncItems(true);
+            } catch (err) {
+                console.error('[OAPP] Add Item Failed', err);
+                showToast('Błąd wysyłania. Zapisano lokalnie.');
+            }
+        } else {
+            showToast('Offline. Zapisano lokalnie.');
         }
-    } else {
-        showToast('Offline. Zapisano lokalnie.');
-    }
-});
+    });
+}
 
-
-// Connectivity
 window.addEventListener('online', updateConnectionStatus);
 window.addEventListener('offline', updateConnectionStatus);
 
@@ -437,24 +505,20 @@ window.addEventListener('offline', updateConnectionStatus);
 function init() {
     console.log('[OAPP] Initializing...');
 
-    // Load initial data from Storage
+    // Load initial data
     const orders = Storage.getOrders();
     renderKanban(Elements.ordersBoard, orders, 'order');
 
     const items = Storage.getItems();
     renderKanban(Elements.itemsBoard, items, 'item');
 
-    renderLinks();
-
-    // Check for stale data / Auto-sync
+    // Check auto-sync
     checkAutoSync();
 
-    // Initial Sync if online
     if (navigator.onLine) {
         syncOrders(true);
         syncItems(true);
     }
 }
 
-// Run init when DOM ready
 document.addEventListener('DOMContentLoaded', init);
