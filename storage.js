@@ -9,6 +9,9 @@ const STORAGE_KEYS = {
     LINKS: 'oapp_links_data',
     LAST_SYNC_ORDERS: 'oapp_last_sync_orders',
     LAST_SYNC_ITEMS: 'oapp_last_sync_items',
+    LAST_SYNC_ITEMS: 'oapp_last_sync_items',
+    NOTEBOOKS: 'oapp_notebooks_data', // Replaces CHAT_LINK
+    USER_NAME: 'oapp_user_name',
     THEME: 'oapp_theme_settings' // Reserved for future use
 };
 
@@ -89,6 +92,46 @@ const Storage = {
         const links = this.getLinks();
         const newLinks = links.filter(link => link.id !== id);
         this.saveLinks(newLinks);
+    },
+
+    // --- Notebooks (Chat AI) ---
+    getNotebooks() {
+        // Migration check: if old single link exists but no notebooks, convert it
+        let notebooks = this.get(STORAGE_KEYS.NOTEBOOKS, []);
+        if (notebooks.length === 0) {
+            const oldLink = this.get('oapp_chat_link');
+            if (oldLink) {
+                notebooks.push({ id: Date.now(), title: 'Mój Notebook', url: oldLink });
+                this.saveNotebooks(notebooks);
+                localStorage.removeItem('oapp_chat_link'); // Cleanup
+            }
+        }
+        return notebooks;
+    },
+
+    saveNotebooks(notebooks) {
+        return this.set(STORAGE_KEYS.NOTEBOOKS, notebooks);
+    },
+
+    addNotebook(title, url) {
+        const list = this.getNotebooks();
+        list.push({ id: Date.now(), title, url });
+        this.saveNotebooks(list);
+    },
+
+    removeNotebook(id) {
+        const list = this.getNotebooks();
+        const newList = list.filter(n => n.id !== id);
+        this.saveNotebooks(newList);
+    },
+
+    // --- User Settings ---
+    getUserName() {
+        return this.get(STORAGE_KEYS.USER_NAME, '');
+    },
+
+    saveUserName(name) {
+        return this.set(STORAGE_KEYS.USER_NAME, name);
     },
 
     // --- Utility ---

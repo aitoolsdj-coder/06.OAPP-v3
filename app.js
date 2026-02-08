@@ -13,19 +13,25 @@ const AppState = {
 const Elements = {
     views: document.querySelectorAll('.view'),
     navButtons: document.querySelectorAll('.nav-btn'),
+
+    // Boards
     ordersBoard: document.getElementById('orders-board'),
     itemsBoard: document.getElementById('items-board'),
-    refreshButtons: document.querySelectorAll('.refresh-btn'),
+
     // Forms
     ordersForm: document.getElementById('orders-form'),
     itemsForm: document.getElementById('items-form'),
-    // Settings & Chat
-    linksList: document.getElementById('links-list'),
-    chatLinkInput: document.getElementById('chat-link-input'),
+
+    // Settings Elements
     userNameInput: document.getElementById('user-name-input'),
-    saveSettingsBtn: document.getElementById('save-settings-btn'),
+    saveUserBtn: document.getElementById('save-user-btn'),
     testConnectionBtn: document.getElementById('test-connection-btn'),
-    openChatBtn: document.getElementById('open-chat-btn')
+
+    // Lists
+    linksList: document.getElementById('links-list'),
+    notebooksListSettings: document.getElementById('settings-notebooks-list'),
+    notebooksListDisplay: document.getElementById('notebooks-list-display'),
+    notebooksEmptyHint: document.getElementById('notebooks-empty-hint')
 };
 
 /* --- UI Utilities --- */
@@ -40,15 +46,21 @@ function showToast(message, duration = 3000) {
 
 function toggleForm(containerId) {
     const container = document.getElementById(containerId);
+    if (!container) return;
+
     container.classList.toggle('hidden');
 
     // Auto-fill Author when opening form
     if (!container.classList.contains('hidden')) {
         const userName = Storage.getUserName();
         if (userName) {
+            // Find input by name="autor" or class="input-autor"
             const form = container.querySelector('form');
-            if (form && form.elements.autor && !form.elements.autor.value) {
-                form.elements.autor.value = userName;
+            if (form) {
+                const autorInput = form.querySelector('[name="autor"]') || form.querySelector('.input-autor');
+                if (autorInput && !autorInput.value) {
+                    autorInput.value = userName;
+                }
             }
         }
     }
@@ -71,6 +83,7 @@ function updateConnectionStatus() {
 
 // --- Kanban Board Render (Generic) ---
 function renderKanban(container, items, type) {
+    if (!container) return;
     container.innerHTML = '';
     const statuses = ['Nowe', 'W toku', 'Zrealizowane'];
 
@@ -199,10 +212,11 @@ async function updateStatus(type, id, newStatus) {
 window.updateStatus = updateStatus;
 window.toggleForm = toggleForm;
 
-// --- Documentation Rendering ---
+// --- Links & Notebooks Rendering ---
+
 function renderLinks() {
     const list = Elements.linksList;
-    if (!list) return;
+    if (!list) return; // Guard
     list.innerHTML = '';
     const links = Storage.getLinks();
 
@@ -210,13 +224,57 @@ function renderLinks() {
         const li = document.createElement('li');
         li.innerHTML = `
             <a href="${link.url}" target="_blank">${link.title}</a>
-            <button onclick="removeLink(${link.id})" style="border:none;background:none;color:#999;cursor:pointer;">✕</button>
+            <button onclick="removeLink(${link.id})" title="Usuń">✕</button>
         `;
         list.appendChild(li);
     });
 }
 
-function addNewLink() {
+function renderNotebooks() {
+    // 1. Settings List
+    const settingsList = Elements.notebooksListSettings;
+    if (settingsList) {
+        settingsList.innerHTML = '';
+        const notebooks = Storage.getNotebooks();
+        notebooks.forEach(nb => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <a href="${nb.url}" target="_blank">${nb.title}</a>
+                <button onclick="removeNotebook(${nb.id})" title="Usuń">✕</button>
+            `;
+            settingsList.appendChild(li);
+        });
+    }
+
+    // 2. Chat View Grid
+    const displayGrid = Elements.notebooksListDisplay;
+    const emptyHint = Elements.notebooksEmptyHint;
+
+    if (displayGrid) {
+        displayGrid.innerHTML = '';
+        const notebooks = Storage.getNotebooks();
+
+        if (notebooks.length === 0) {
+            if (emptyHint) emptyHint.style.display = 'block';
+        } else {
+            if (emptyHint) emptyHint.style.display = 'none';
+            notebooks.forEach(nb => {
+                const a = document.createElement('a');
+                a.className = 'notebook-card';
+                a.href = nb.url;
+                a.target = '_blank';
+                a.innerHTML = `
+                    <div class="notebook-icon">🤖</div>
+                    <div class="notebook-title">${nb.title}</div>
+                `;
+                displayGrid.appendChild(a);
+            });
+        }
+    }
+}
+
+// Global functions for inline onclicks
+window.addNewLink = function () {
     const title = prompt('Nazwa linku:');
     if (!title) return;
     const url = prompt('URL linku:');
@@ -224,47 +282,55 @@ function addNewLink() {
 
     Storage.addLink(title, url);
     renderLinks();
-}
+};
 
-function removeLink(id) {
+window.removeLink = function (id) {
     if (confirm('Usunąć link?')) {
         Storage.removeLink(id);
         renderLinks();
     }
-}
+};
 
-window.addNewLink = addNewLink;
-window.removeLink = removeLink;
+window.addNewNotebook = function () {
+    const title = prompt('Nazwa Notebooka:');
+    if (!title) return;
+    const url = prompt('Link do Notebooka (Share URL):');
+    if (!url) return;
+
+    Storage.addNotebook(title, url);
+    renderNotebooks();
+};
+
+window.removeNotebook = function (id) {
+    if (confirm('Usunąć Notebook?')) {
+        Storage.removeNotebook(id);
+        renderNotebooks();
+    }
+};
 
 
 /* --- Synchronization --- */
-
 async function syncOrders(silent = false) {
     if (!navigator.onLine) {
         if (!silent) showToast('Brak sieci. Pokazuję dane lokalne.');
         return;
     }
-
     if (!silent) showToast('Odświeżanie zapotrzebowań...');
     try {
         const res = await window.API.fetchOrders();
-        console.log('[OAPP] Sync Orders:', res);
-
+        // console.log('[OAPP] Sync Orders:', res);
         if (res && res.ok && Array.isArray(res.items)) {
-            // Filter out empty items
             const cleanItems = res.items.filter(i => i.co && i.co.trim().length > 0);
-
             Storage.saveOrders(cleanItems);
             Storage.setLastSyncOrders(Date.now());
             renderKanban(Elements.ordersBoard, cleanItems, 'order');
             if (!silent) showToast('Zapotrzebowania zaktualizowane.');
         } else {
-            console.warn('[OAPP] Invalid format for orders', res);
             if (!silent) showToast('Błąd formatu danych.');
         }
     } catch (err) {
-        console.error('[OAPP] Sync Orders Error', err);
-        if (!silent) showToast('1. Błąd synchronizacji.');
+        console.error(err);
+        if (!silent) showToast('Błąd synchronizacji.');
     }
 }
 
@@ -273,27 +339,22 @@ async function syncItems(silent = false) {
         if (!silent) showToast('Brak sieci. Pokazuję dane lokalne.');
         return;
     }
-
     if (!silent) showToast('Odświeżanie pytań...');
     try {
         const res = await window.API.fetchItems();
-        console.log('[OAPP] Sync Items:', res);
-
+        // console.log('[OAPP] Sync Items:', res);
         if (res && res.ok && Array.isArray(res.items)) {
-            // Filter out empty items
             const cleanItems = res.items.filter(i => i.opis && i.opis.trim().length > 0);
-
             Storage.saveItems(cleanItems);
             Storage.setLastSyncItems(Date.now());
             renderKanban(Elements.itemsBoard, cleanItems, 'item');
             if (!silent) showToast('Pytania zaktualizowane.');
         } else {
-            console.warn('[OAPP] Invalid format for items', res);
             if (!silent) showToast('Błąd formatu danych.');
         }
     } catch (err) {
-        console.error('[OAPP] Sync Items Error', err);
-        if (!silent) showToast('2. Błąd synchronizacji.');
+        console.error(err);
+        if (!silent) showToast('Błąd synchronizacji.');
     }
 }
 
@@ -307,43 +368,60 @@ function syncCurrentView(silent = false) {
 
 function checkAutoSync() {
     const now = Date.now();
-    const lastSyncOrders = Storage.getLastSyncOrders();
-    const lastSyncItems = Storage.getLastSyncItems();
-
-    if (now - lastSyncOrders > AppState.syncInterval) {
-        syncOrders(true);
-    }
-    if (now - lastSyncItems > AppState.syncInterval) {
-        syncItems(true);
-    }
+    if (now - Storage.getLastSyncOrders() > AppState.syncInterval) syncOrders(true);
+    if (now - Storage.getLastSyncItems() > AppState.syncInterval) syncItems(true);
 }
 
-/* --- Settings Logic --- */
+/* --- Settings Init --- */
 function initSettings() {
-    // Load saved settings
-    if (Elements.chatLinkInput) Elements.chatLinkInput.value = Storage.getChatLink();
     if (Elements.userNameInput) Elements.userNameInput.value = Storage.getUserName();
-    renderLinks(); // Now in settings view
+    renderLinks();
+    renderNotebooks();
 }
 
-if (Elements.saveSettingsBtn) {
-    Elements.saveSettingsBtn.addEventListener('click', () => {
-        const rawLink = Elements.chatLinkInput.value.trim();
-        const userName = Elements.userNameInput.value.trim();
-        let success = true;
+/* --- Event Listeners --- */
 
-        if (rawLink) {
-            if (!rawLink.startsWith('http')) {
-                showToast('Link do Chat AI musi startować od http.');
-                success = false;
-            } else {
-                Storage.saveChatLink(rawLink);
-            }
+// 1. Navigation
+Elements.navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Toggle Active
+        Elements.navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Toggle View
+        Elements.views.forEach(v => v.classList.remove('active'));
+        const targetId = btn.dataset.target;
+        const targetView = document.getElementById(targetId);
+        if (targetView) targetView.classList.add('active');
+
+        AppState.currentView = targetId;
+
+        // View Logic
+        if (targetId === 'view-orders') {
+            const orders = Storage.getOrders();
+            renderKanban(Elements.ordersBoard, orders, 'order');
+            if (navigator.onLine) syncOrders(true);
+
+        } else if (targetId === 'view-items') {
+            const items = Storage.getItems();
+            renderKanban(Elements.itemsBoard, items, 'item');
+            if (navigator.onLine) syncItems(true);
+
+        } else if (targetId === 'view-chat') {
+            renderNotebooks();
+
+        } else if (targetId === 'view-settings') {
+            initSettings();
         }
+    });
+});
 
-        Storage.saveUserName(userName); // Save even if empty
-
-        if (success) showToast('Ustawienia zapisane.');
+// 2. Settings Actions
+if (Elements.saveUserBtn) {
+    Elements.saveUserBtn.addEventListener('click', () => {
+        const userName = Elements.userNameInput.value.trim();
+        Storage.saveUserName(userName);
+        showToast('Podpis zapisany!');
     });
 }
 
@@ -364,77 +442,22 @@ if (Elements.testConnectionBtn) {
     });
 }
 
-if (Elements.openChatBtn) {
-    Elements.openChatBtn.addEventListener('click', () => {
-        const link = Storage.getChatLink();
-        if (link) {
-            window.open(link, '_blank');
-        } else {
-            showToast('Skonfiguruj link w zakładce Ustawienia.');
-        }
-    });
-}
-
-/* --- Event Listeners --- */
-
-// Navigation
-Elements.navButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Switch Active Class
-        Elements.navButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        // Switch View
-        Elements.views.forEach(v => v.classList.remove('active'));
-        const targetId = btn.dataset.target;
-        const targetView = document.getElementById(targetId);
-        if (targetView) targetView.classList.add('active');
-
-        AppState.currentView = targetId;
-
-        // View Specific Logic
-        if (targetId === 'view-orders') {
-            const orders = Storage.getOrders();
-            renderKanban(Elements.ordersBoard, orders, 'order');
-            if (navigator.onLine) syncOrders(true);
-
-        } else if (targetId === 'view-items') {
-            const items = Storage.getItems();
-            renderKanban(Elements.itemsBoard, items, 'item');
-            if (navigator.onLine) syncItems(true);
-
-        } else if (targetId === 'view-settings') {
-            initSettings();
-        }
-        // view-chat and view-docs are static or simple
-    });
-});
-
-// Refresh Buttons
+// 3. Refresh Buttons
 const refreshOrdersBtn = document.getElementById('refresh-orders');
-if (refreshOrdersBtn) {
-    refreshOrdersBtn.addEventListener('click', () => syncOrders(false));
-}
+if (refreshOrdersBtn) refreshOrdersBtn.addEventListener('click', () => syncOrders(false));
 
 const refreshItemsBtn = document.getElementById('refresh-items');
-if (refreshItemsBtn) {
-    refreshItemsBtn.addEventListener('click', () => syncItems(false));
-}
+if (refreshItemsBtn) refreshItemsBtn.addEventListener('click', () => syncItems(false));
 
-// Form Submissions
+// 4. Forms
 if (Elements.ordersForm) {
     Elements.ordersForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-
         if (!data.co.trim()) return;
 
-        const newItem = {
-            id: `local-${Date.now()}`,
-            ...data,
-            status: 'Nowe'
-        };
+        const newItem = { id: `local-${Date.now()}`, ...data, status: 'Nowe' };
 
         const orders = Storage.getOrders();
         orders.unshift(newItem);
@@ -451,7 +474,6 @@ if (Elements.ordersForm) {
                 showToast('Dodano pomyślnie.');
                 syncOrders(true);
             } catch (err) {
-                console.error('[OAPP] Add Order Failed', err);
                 showToast('Błąd wysyłania. Zapisano lokalnie.');
             }
         } else {
@@ -465,14 +487,9 @@ if (Elements.itemsForm) {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = Object.fromEntries(formData.entries());
-
         if (!data.opis.trim()) return;
 
-        const newItem = {
-            id: `local-${Date.now()}`,
-            ...data,
-            status: 'Nowe'
-        };
+        const newItem = { id: `local-${Date.now()}`, ...data, status: 'Nowe' };
 
         const items = Storage.getItems();
         items.unshift(newItem);
@@ -489,7 +506,6 @@ if (Elements.itemsForm) {
                 showToast('Dodano pomyślnie.');
                 syncItems(true);
             } catch (err) {
-                console.error('[OAPP] Add Item Failed', err);
                 showToast('Błąd wysyłania. Zapisano lokalnie.');
             }
         } else {
@@ -501,18 +517,15 @@ if (Elements.itemsForm) {
 window.addEventListener('online', updateConnectionStatus);
 window.addEventListener('offline', updateConnectionStatus);
 
-/* --- Initialization --- */
+/* --- Init --- */
 function init() {
     console.log('[OAPP] Initializing...');
 
-    // Load initial data
-    const orders = Storage.getOrders();
-    renderKanban(Elements.ordersBoard, orders, 'order');
+    // Render initial
+    renderKanban(Elements.ordersBoard, Storage.getOrders(), 'order');
+    renderKanban(Elements.itemsBoard, Storage.getItems(), 'item');
+    renderNotebooks(); // For Chat view if starting there, though usually starts at orders
 
-    const items = Storage.getItems();
-    renderKanban(Elements.itemsBoard, items, 'item');
-
-    // Check auto-sync
     checkAutoSync();
 
     if (navigator.onLine) {

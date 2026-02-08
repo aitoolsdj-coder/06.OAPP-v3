@@ -31,10 +31,16 @@
                         Zapotrzebowanie</button>
                     <div id="orders-form-container" class="form-container hidden">
                         <form id="orders-form">
-                            <input type="text" name="co" placeholder="Co potrzeba? *" required>
-                            <input type="text" name="ilosc" placeholder="Ilość *" required>
-                            <input type="text" name="producent" placeholder="Producent (opcjonalnie)">
-                            <input type="text" name="autor" placeholder="Autor (opcjonalnie)">
+                            <div class="form-group">
+                                <input type="text" name="co" placeholder="Co potrzeba? *" required>
+                            </div>
+                            <div class="form-row">
+                                <input type="text" name="ilosc" placeholder="Ilość *" required>
+                                <input type="text" name="producent" placeholder="Producent">
+                            </div>
+                            <div class="form-group">
+                                <input type="text" name="autor" class="input-autor" placeholder="Autor (opcjonalnie)">
+                            </div>
                             <textarea name="uwagi" placeholder="Uwagi (opcjonalnie)"></textarea>
                             <button type="submit" class="submit-btn">Dodaj</button>
                         </form>
@@ -59,14 +65,20 @@
                     <button class="toggle-form-btn" onclick="toggleForm('items-form-container')">+ Nowe Pytanie</button>
                     <div id="items-form-container" class="form-container hidden">
                         <form id="items-form">
-                            <input type="text" name="opis" placeholder="Treść pytania *" required>
-                            <input type="date" name="termin_odpowiedzi" placeholder="Termin odpowiedzi">
-                            <select name="priorytet">
-                                <option value="Niski">Niski</option>
-                                <option value="Średni" selected>Średni</option>
-                                <option value="Wysoki">Wysoki</option>
-                            </select>
-                            <input type="text" name="autor" placeholder="Autor (opcjonalnie)">
+                            <div class="form-group">
+                                <input type="text" name="opis" placeholder="Treść pytania *" required>
+                            </div>
+                            <div class="form-row">
+                                <input type="date" name="termin_odpowiedzi" placeholder="Termin">
+                                <select name="priorytet">
+                                    <option value="Niski">Niski</option>
+                                    <option value="Średni" selected>Średni</option>
+                                    <option value="Wysoki">Wysoki</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <input type="text" name="autor" class="input-autor" placeholder="Autor (opcjonalnie)">
+                            </div>
                             <button type="submit" class="submit-btn">Dodaj</button>
                         </form>
                     </div>
@@ -99,14 +111,15 @@
         <!-- Chat AI View -->
         <div id="view-chat" class="view">
             <header>
-                <h1>Chat AI</h1>
+                <h1>Chat AI (NotebookLM)</h1>
             </header>
             <div class="content chat-content">
-                <div class="chat-main-area">
-                    <button id="open-chat-btn" class="chat-open-btn">
-                        🤖 Otwórz Chat AI
-                    </button>
-                    <p class="chat-hint">Otwiera NotebookLM w nowej karcie</p>
+                <p class="section-hint">Twoje notesy:</p>
+                <div id="notebooks-list-display" class="notebooks-grid">
+                    <!-- Buttons will be injected here -->
+                </div>
+                <div class="empty-state-hint" id="notebooks-empty-hint" style="display:none;">
+                    Brak notesów. Dodaj je w Ustawieniach.
                 </div>
             </div>
         </div>
@@ -117,29 +130,46 @@
                 <h1>Ustawienia</h1>
             </header>
             <div class="content settings-content">
-                <div class="chat-settings">
+
+                <!-- User Section -->
+                <div class="settings-card">
+                    <h2>👤 Użytkownik</h2>
                     <div class="setting-group">
-                        <label for="user-name-input">Użytkownik (Autor)</label>
-                        <input type="text" id="user-name-input" placeholder="Twoje imię / nazwisko">
-                        <p class="setting-hint">Automatycznie uzupełnia pole "Autor"</p>
-                    </div>
-
-                    <div class="setting-group">
-                        <label for="chat-link-input">Link do Chat AI (NotebookLM)</label>
-                        <input type="text" id="chat-link-input" placeholder="Wklej link do notatnika...">
-                    </div>
-
-                    <div class="settings-actions">
-                        <button id="test-connection-btn" class="test-conn-btn">📡 Testuj połączenie</button>
-                        <button id="save-settings-btn" class="save-settings-btn">Zapisz ustawienia</button>
-                    </div>
-
-                    <div class="links-section">
-                        <h2>Zapisane Linki</h2>
-                        <ul id="links-list"></ul>
-                        <button class="add-link-btn" onclick="addNewLink()">+ Dodaj link</button>
+                        <label for="user-name-input">Podpis (Imię/Nazwisko)</label>
+                        <input type="text" id="user-name-input" placeholder="Wpisz swoje dane...">
+                        <p class="setting-hint">To pole będzie automatycznie wypełniać "Autora" w formularzach.</p>
+                        <button id="save-user-btn" class="save-settings-btn primary">Zapisz podpis</button>
                     </div>
                 </div>
+
+                <!-- Connection Section -->
+                <div class="settings-card">
+                    <h2>📡 Połączenie</h2>
+                    <div class="setting-group">
+                        <div class="connection-status-area">
+                            <button id="test-connection-btn" class="test-conn-btn">Testuj połączenie z n8n</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notebooks Section -->
+                <div class="settings-card">
+                    <h2>🤖 Notebooki AI</h2>
+                    <p class="setting-hint">Dodaj linki do swoich notesów NotebookLM, aby mieć do nich szybki dostęp w
+                        zakładce Chat AI.</p>
+
+                    <ul id="settings-notebooks-list" class="settings-list"></ul>
+
+                    <button class="add-link-btn" onclick="addNewNotebook()">+ Dodaj Notebook</button>
+                </div>
+
+                <!-- Links Section -->
+                <div class="settings-card">
+                    <h2>🔗 Ważne Linki</h2>
+                    <ul id="links-list" class="settings-list"></ul>
+                    <button class="add-link-btn" onclick="addNewLink()">+ Dodaj Link</button>
+                </div>
+
             </div>
         </div>
 
@@ -179,7 +209,6 @@
                 navigator.serviceWorker.register('./sw.js')
                     .then(reg => {
                         console.log('[OAPP] SW registered!', reg);
-                        // Check for updates
                         reg.addEventListener('updatefound', () => {
                             const newWorker = reg.installing;
                             newWorker.addEventListener('statechange', () => {
