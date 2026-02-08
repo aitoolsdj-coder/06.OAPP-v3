@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OAPP v3</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#003264">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="icon-192.png"> 
+    <!-- PWA iOS settings -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OAPP v3">
+</head>
+<body>
+
+    <div id="app">
+        <!-- Zapotrzebowania View -->
+        <div id="view-orders" class="view active">
+            <header>
+                <h1>Zapotrzebowania</h1>
+                <button id="refresh-orders" class="refresh-btn" aria-label="Odśwież">↻</button>
+            </header>
+            
+            <div class="content">
+                <section class="add-form-section">
+                    <button class="toggle-form-btn" onclick="toggleForm('orders-form-container')">+ Nowe Zapotrzebowanie</button>
+                    <div id="orders-form-container" class="form-container hidden">
+                        <form id="orders-form">
+                            <input type="text" name="co" placeholder="Co potrzeba? *" required>
+                            <input type="text" name="ilosc" placeholder="Ilość *" required>
+                            <input type="text" name="producent" placeholder="Producent (opcjonalnie)">
+                            <input type="text" name="autor" placeholder="Autor (opcjonalnie)">
+                            <textarea name="uwagi" placeholder="Uwagi (opcjonalnie)"></textarea>
+                            <button type="submit" class="submit-btn">Dodaj</button>
+                        </form>
+                    </div>
+                </section>
+
+                <div class="kanban-board" id="orders-board">
+                    <!-- Columns will be injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Pytania View -->
+        <div id="view-items" class="view">
+             <header>
+                <h1>Pytania</h1>
+                <button id="refresh-items" class="refresh-btn" aria-label="Odśwież">↻</button>
+            </header>
+            
+             <div class="content">
+                <section class="add-form-section">
+                     <button class="toggle-form-btn" onclick="toggleForm('items-form-container')">+ Nowe Pytanie</button>
+                    <div id="items-form-container" class="form-container hidden">
+                         <form id="items-form">
+                            <input type="text" name="opis" placeholder="Treść pytania *" required>
+                            <input type="date" name="termin_odpowiedzi" placeholder="Termin odpowiedzi">
+                            <select name="priorytet">
+                                <option value="Niski">Niski</option>
+                                <option value="Średni" selected>Średni</option>
+                                <option value="Wysoki">Wysoki</option>
+                            </select>
+                            <input type="text" name="autor" placeholder="Autor (opcjonalnie)">
+                             <button type="submit" class="submit-btn">Dodaj</button>
+                        </form>
+                    </div>
+                </section>
+
+                <div class="kanban-board" id="items-board">
+                     <!-- Columns will be injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Dokumentacja View -->
+        <div id="view-docs" class="view">
+             <header>
+                <h1>Dokumentacja</h1>
+            </header>
+             <div class="content docs-content">
+                <a href="https://drive.google.com/drive/folders/1iURUi0OKIleXiPBbYsfZSKutvIRBJWmS?usp=sharing" target="_blank" class="drive-btn">
+                    📂 Otwórz folder w Google Drive
+                </a>
+                
+                <div class="links-section">
+                    <h2>Ważne linki</h2>
+                    <ul id="links-list">
+                        <!-- Links injected by JS -->
+                    </ul>
+                    <button class="add-link-btn" onclick="addNewLink()">+ Dodaj link</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-target="view-orders">
+                <span class="icon">📦</span>
+                <span class="label">Zapotrzebowania</span>
+            </button>
+             <button class="nav-btn" data-target="view-items">
+                <span class="icon">❓</span>
+                <span class="label">Pytania</span>
+            </button>
+             <button class="nav-btn" data-target="view-docs">
+                <span class="icon">📂</span>
+                <span class="label">Dokumentacja</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script src="storage.js"></script>
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('[OAPP] SW registered!', reg))
+                    .catch(err => console.log('[OAPP] SW registration failed', err));
+            });
+        }
+    </script>
+</body>
+</html>
