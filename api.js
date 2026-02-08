@@ -6,7 +6,10 @@
 const BASE_URL = 'https://jakubdworak.app.n8n.cloud/webhook';
 const TIMEOUT_MS = 12000; // 12 seconds
 
-const API = {
+const BASE_URL = 'https://jakubdworak.app.n8n.cloud/webhook';
+const TIMEOUT_MS = 12000; // 12 seconds
+
+window.API = {
     endpoints: {
         orders: {
             list: `${BASE_URL}/oapp/zapotrzebowania/list`,
